@@ -63,7 +63,9 @@ El firmware publica el caudal, el estado y las alertas. Node-RED procesa el cons
 │   └── logo.png
 ├── node_red_flow.json         # Flujo importable de Node-RED
 ├── run.sh                     # Arranque del dashboard y Node-RED
-├── Memoria.docx               # Memoria del proyecto
+├── Manual del Usuario.pdf     # Manual de usuario del sistema
+├── Manual del Programador.pdf # Manual para desarrolladores
+├── Memoria.pdf                # Memoria del proyecto
 └── problemas_chat_iot_agua.md # Bitácora de incidencias técnicas
 ```
 
@@ -187,14 +189,6 @@ Para evitar falsos consumos durante la conmutación, se descartan pulsos durante
 - La alerta de flujo con válvula cerrada puede publicarse repetidamente mientras persista la condición.
 - Las gráficas históricas del dashboard contienen datos de demostración y no constituyen almacenamiento persistente.
 - La bomba de presión y el control Bluetooth no forman parte de la versión final.
-
-## Documentación adicional
-
-- `Memoria.docx`: memoria técnica completa.
-- `ESPECIFICACION_ENTREGA.md`: requisitos de los entregables.
-- `problemas_chat_iot_agua.md`: incidencias encontradas durante las pruebas.
-- `problema_bluetooth_esp32.md`: diagnóstico de los problemas con Bluetooth.
-- `implementation_plan_iot_agua.md`: planificación inicial de la implementación.
 
 ## Autores
 
