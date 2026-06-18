@@ -1,0 +1,272 @@
+[
+    {
+        "id": "f6f2187d.f17a88",
+        "type": "tab",
+        "label": "Sistema IoT Agua",
+        "disabled": false,
+        "info": "Flujo de control y procesamiento para el Sistema IoT de Monitorización y Control de Agua."
+    },
+    {
+        "id": "mqtt-broker-hivemq",
+        "type": "mqtt-broker",
+        "name": "HiveMQ Public Broker",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "mqtt-in-caudal",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17a88",
+        "name": "Suscribir Caudal",
+        "topic": "casa/agua/caudal",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt-broker-hivemq",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 260,
+        "y": 320,
+        "wires": [
+            [
+                "calc-consumo",
+                "debug-caudal"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt-in-estado",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17a88",
+        "name": "Suscribir Estado",
+        "topic": "casa/agua/estado",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt-broker-hivemq",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 260,
+        "y": 80,
+        "wires": [
+            [
+                "debug-estado"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt-in-alerta",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17a88",
+        "name": "Suscribir Alertas",
+        "topic": "casa/agua/alerta",
+        "qos": "0",
+        "datatype": "utf8",
+        "broker": "mqtt-broker-hivemq",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 260,
+        "y": 200,
+        "wires": [
+            [
+                "proc-alertas",
+                "debug-alerta"
+            ]
+        ]
+    },
+    {
+        "id": "calc-consumo",
+        "type": "function",
+        "z": "f6f2187d.f17a88",
+        "name": "Calcular Consumo Acumulado",
+        "func": "// Inicializar consumos acumulados en el contexto del flujo si no existen\nlet diario = flow.get('consumoDiario') || 0;\nlet semanal = flow.get('consumoSemanal') || 0;\nlet ultimoTimestamp = flow.get('ultimoTimestamp') || Date.now();\n\nlet ahora = Date.now();\nlet deltaMs = ahora - ultimoTimestamp;\nflow.set('ultimoTimestamp', ahora);\n\n// Si el intervalo de tiempo es razonable (evitar saltos en reconexiones)\nif (deltaMs > 0 && deltaMs < 5000) {\n    let flow_l_min = msg.payload.flow_l_min || 0;\n    // Litros consumidos en este intervalo = caudal (L/min) * tiempo (minutos)\n    let litros = flow_l_min * (deltaMs / 60000.0);\n    \n    diario += litros;\n    semanal += litros;\n    \n    flow.set('consumoDiario', diario);\n    flow.set('consumoSemanal', semanal);\n}\n\n// Reinicio diario a las 00:00 (basado en fecha)\nlet hoy = new Date();\nlet ultimoDia = flow.get('ultimoDia') || hoy.getDate();\nif (hoy.getDate() !== ultimoDia) {\n    diario = 0;\n    flow.set('consumoDiario', diario);\n    flow.set('ultimoDia', hoy.getDate());\n    // Si es lunes, reiniciar también semanal\n    if (hoy.getDay() === 1) {\n        semanal = 0;\n        flow.set('consumoSemanal', semanal);\n    }\n}\n\nmsg.payload = {\n    flow_l_min: msg.payload.flow_l_min,\n    pulses: msg.payload.pulses,\n    consumoDiarioL: parseFloat(diario.toFixed(2)),\n    consumoSemanalL: parseFloat(semanal.toFixed(2))\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 360,
+        "wires": [
+            [
+                "mqtt-out-consumo",
+                "debug-consumo"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt-out-consumo",
+        "type": "mqtt out",
+        "z": "f6f2187d.f17a88",
+        "name": "Publicar Consumo Procesado",
+        "topic": "casa/agua/consumo_procesado",
+        "qos": "0",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt-broker-hivemq",
+        "x": 950,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "proc-alertas",
+        "type": "function",
+        "z": "f6f2187d.f17a88",
+        "name": "Procesador de Alertas",
+        "func": "let alerta = msg.payload;\nlet timestamp = new Date().toISOString();\n\nmsg.payload = {\n    alerta: alerta,\n    timestamp: timestamp,\n    mensaje: \"\"\n};\n\nif (alerta === \"Fuga_detectada_valvula_cerrada\") {\n    msg.payload.mensaje = \"⚠️ ALERTA CRÍTICA: Se detecta paso de agua con la válvula CERRADA!\";\n} else if (alerta === \"Fuga_Tiempo_Excesivo\") {\n    msg.payload.mensaje = \"🚨 ALERTA CRÍTICA: Flujo continuo de agua detectado por demasiado tiempo. El sistema ha cerrado los equipos por seguridad.\";\n} else {\n    msg.payload.mensaje = \"Alerta de agua: \" + alerta;\n}\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 560,
+        "y": 240,
+        "wires": [
+            [
+                "debug-alerta-procesada"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt-pub-valvula",
+        "type": "mqtt out",
+        "z": "f6f2187d.f17a88",
+        "name": "Publicar Comando Válvula",
+        "topic": "casa/agua/valvula",
+        "qos": "0",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt-broker-hivemq",
+        "x": 300,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "mqtt-pub-bomba",
+        "type": "mqtt out",
+        "z": "f6f2187d.f17a88",
+        "d": true,
+        "name": "Publicar Comando Bomba (deshabilitado)",
+        "topic": "casa/agua/bomba",
+        "qos": "0",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt-broker-hivemq",
+        "x": 340,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "debug-caudal",
+        "type": "debug",
+        "z": "f6f2187d.f17a88",
+        "name": "Debug Caudal",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "debug-estado",
+        "type": "debug",
+        "z": "f6f2187d.f17a88",
+        "name": "Debug Estado",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "debug-alerta",
+        "type": "debug",
+        "z": "f6f2187d.f17a88",
+        "name": "Debug Alerta",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 530,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "debug-consumo",
+        "type": "debug",
+        "z": "f6f2187d.f17a88",
+        "name": "Debug Consumo Acumulado",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "debug-alerta-procesada",
+        "type": "debug",
+        "z": "f6f2187d.f17a88",
+        "name": "Debug Alerta Procesada",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 930,
+        "y": 240,
+        "wires": []
+    }
+]
