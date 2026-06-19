@@ -189,6 +189,10 @@ Para evitar falsos consumos durante la conmutación, se descartan pulsos durante
 - Las gráficas históricas del dashboard contienen datos de demostración y no constituyen almacenamiento persistente.
 - La bomba de presión y el control Bluetooth no forman parte de la versión final.
 
+## Enlace al video de YouTube
+
+[![Video del proyecto](https://img.youtube.com/vi/noxHuq9D2KU/0.jpg)](https://youtu.be/noxHuq9D2KU)
+
 ## Autores
 
 Alejandro Moscardó Vilar y Miguel Pérez Pomares.
