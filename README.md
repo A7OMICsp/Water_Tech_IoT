@@ -65,8 +65,7 @@ El firmware publica el caudal, el estado y las alertas. Node-RED procesa el cons
 ├── run.sh                     # Arranque del dashboard y Node-RED
 ├── Manual del Usuario.pdf     # Manual de usuario del sistema
 ├── Manual del Programador.pdf # Manual para desarrolladores
-├── Memoria.pdf                # Memoria del proyecto
-└── problemas_chat_iot_agua.md # Bitácora de incidencias técnicas
+└── Memoria.pdf                # Memoria del proyecto
 ```
 
 ## Dependencias
